@@ -1,32 +1,34 @@
 package main
 
 import (
-	"fmt"
+	"BibleSearch/config"
 	chroma "github.com/amikos-tech/chroma-go"
 	"github.com/amikos-tech/chroma-go/openai"
-	"github.com/joho/godotenv"
-	"os"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
+	config.ReadDotEnv()
+	configuration := config.NewDefaultConfig()
 
-	fmt.Println("Starting BibleSearch Engine")
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Println("Error loading .env file, using system environment variables")
-	}
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	fmt.Println("Building Chroma Client")
-	client := chroma.NewClient(os.Getenv("CHROMA_URL"))
+	log.Info().Msg("Creating Chroma Client")
+	client := chroma.NewClient(configuration.ChromaURL)
 	meta := map[string]interface{}{}
 
-	fmt.Println("Creating Embedding Function")
-	embeddingFunction := openai.NewOpenAIEmbeddingFunction(os.Getenv("OPENAI_API_KEY")) //create a new OpenAI Embedding function
+	log.Info().Msg("Creating OpenAI Embedding Function")
+	embeddingFunction := openai.NewOpenAIEmbeddingFunction(configuration.OpenAIKey) //create a new OpenAI Embedding function
 
-	fmt.Println("Creating Collection")
-	collection, _ := client.CreateCollection("test", meta, true, embeddingFunction, chroma.L2)
+	log.Info().Msg("Creating Collection")
+	collection, err := client.CreateCollection("test", meta, true, embeddingFunction, chroma.L2)
+	if err != nil {
+		log.Error().Err(err).Msg("Error creating collection")
+		return
+	}
 
-	fmt.Println("Adding Documents, ids, and metadatas")
+	log.Info().Msg("Adding Documents to Collection")
 	documents := []string{
 		"This is a document about cats. Cats are great.",
 		"this is a document about dogs. Dogs are great.",
@@ -41,25 +43,28 @@ func main() {
 		{"key2": "value2"},
 	}
 
-	fmt.Println("Adding Documents to Collection")
+	log.Info().Msg("Adding Documents to Collection")
 	col, addError := collection.Add(nil, metadatas, documents, ids)
 	if addError != nil {
-		fmt.Printf("Error adding documents: %s", addError)
+		log.Error().Err(addError).Msg("Error adding documents")
 		return
 	}
 
-	fmt.Printf("col: %v\n", col) //this should result in the collection with the two documents
+	log.Info().Any("col", col).Msg("Added Documents to Collection")
 
 	countDocs, qrerr := collection.Count()
 	if qrerr != nil {
-		fmt.Printf("Error counting documents: %s", qrerr)
+		log.Error().Err(qrerr).Msg("Error `querying documents")
 		return
 	}
-	fmt.Printf("countDocs: %v\n", countDocs) //this should result in 2
+
+	log.Info().Int32("docsCounter", countDocs).Msg("Counted documents")
+
 	qr, qrerr := collection.Query([]string{"I love dogs"}, 5, nil, nil, nil)
 	if qrerr != nil {
-		fmt.Printf("Error `querying documents: %s", qrerr)
+		log.Error().Err(qrerr).Msg("Error `querying documents")
 		return
 	}
-	fmt.Printf("qr: %v\n", qr.Documents[0][0]) //this should result in the document about dogs
+
+	log.Info().Any("qr", qr).Msg("Query Results")
 }
