@@ -13,8 +13,7 @@ func main() {
 	fmt.Println("Starting BibleSearch Engine")
 	err := godotenv.Load(".env")
 	if err != nil {
-		fmt.Printf("Error loading .env file: %s", err)
-		return
+		fmt.Println("Error loading .env file, using system environment variables")
 	}
 
 	fmt.Println("Building Chroma Client")
