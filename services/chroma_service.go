@@ -40,29 +40,32 @@ func (c *ChromaService) CreateCollection(collectionName string) (*chroma.Collect
 func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 	globalCounter := 0
 	for _, book := range *bookSlice {
+		chapterCounter := 0
 		for _, chapter := range book.Chapters {
 			verseCounter := 0
 			for _, verse := range chapter {
 
 				md := map[string]interface{}{
 					"book":    book.Name,
-					"chapter": chapter,
+					"chapter": chapterCounter,
 					"verse":   verseCounter,
 				}
 				metadatas := []map[string]interface{}{md}
 
-				_, addError := c.Collection.Add(nil, metadatas, []string{verse}, []string{strconv.Itoa(globalCounter)})
-				if addError != nil {
-					log.Error().Err(addError).Msg("Error adding documents, retrying")
-					time.Sleep(5 * time.Second)
+				successful := false
+				// keep retrying until it works
 
+				for !successful {
 					_, err := c.Collection.Add(nil, metadatas, []string{verse}, []string{strconv.Itoa(globalCounter)})
 					if err != nil {
-						log.Error().Err(err).Msg("Error adding documents, exiting")
-						return err
+						log.Error().Err(err).Msg("Error adding documents, retrying")
+						time.Sleep(5 * time.Second)
+					} else {
+						successful = true
 					}
 				}
 				globalCounter++
+				chapterCounter++
 				verseCounter++
 			}
 		}
