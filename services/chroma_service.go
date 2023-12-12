@@ -39,6 +39,7 @@ func (c *ChromaService) CreateCollection(collectionName string) (*chroma.Collect
 
 func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 	globalCounter := 0
+
 	for _, book := range *bookSlice {
 		chapterCounter := 0
 		for _, chapter := range book.Chapters {
@@ -65,9 +66,9 @@ func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 					}
 				}
 				globalCounter++
-				chapterCounter++
 				verseCounter++
 			}
+			chapterCounter++
 		}
 	}
 	return nil
