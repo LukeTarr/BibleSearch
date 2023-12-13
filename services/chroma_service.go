@@ -18,6 +18,11 @@ type ChromaService struct {
 
 func NewDefaultChromaService(configuration *config.Config) *ChromaService {
 	client := chroma.NewClient(configuration.ChromaURL)
+	_, err := client.Reset()
+	if err != nil {
+		log.Error().Err(err).Msg("Error resetting client, overwriting instead")
+		return nil
+	}
 	return &ChromaService{
 		Client:        client,
 		Configuration: configuration,
@@ -41,21 +46,15 @@ func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 	globalCounter := 0
 
 	for _, book := range *bookSlice {
-		chapterCounter := 1
-		for _, chapter := range book.Chapters {
-			verseCounter := 1
-			for _, verse := range chapter {
-
-				md := map[string]interface{}{
+		for chapterCounter, chapter := range book.Chapters {
+			for verseCounter, verse := range chapter {
+				metadatas := []map[string]interface{}{{
 					"book":    book.Name,
-					"chapter": chapterCounter,
-					"verse":   verseCounter,
-				}
-				metadatas := []map[string]interface{}{md}
+					"chapter": strconv.Itoa(chapterCounter + 1),
+					"verse":   strconv.Itoa(verseCounter + 1),
+				}}
 
 				successful := false
-				// keep retrying until it works
-
 				for !successful {
 					_, err := c.Collection.Add(nil, metadatas, []string{verse}, []string{strconv.Itoa(globalCounter)})
 					if err != nil {
@@ -66,9 +65,7 @@ func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 					}
 				}
 				globalCounter++
-				verseCounter++
 			}
-			chapterCounter++
 		}
 	}
 	return nil

@@ -41,16 +41,13 @@ func main() {
 
 	log.Info().Int32("docsCounter", countDocs).Msg("Counted documents")
 
-	qr, err := collection.Query([]string{"The first human"}, 1, nil, nil, nil)
+	qr, err := collection.Query([]string{"Formless, void, emptiness"}, 1, nil, nil, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Error `querying documents")
 		return
 	}
 
-	log.Info().Any("qr", qr.Documents).Msg("Query Results")
-	log.Info().Any("qr", qr.Ids).Msg("Query Results")
-	log.Info().Any("qr", qr.Distances).Msg("Query Results")
-	log.Info().Any("qr", qr.Metadatas).Msg("Query Results")
-	fmt.Println(qr.Metadatas[0][0])
-
+	fmt.Println(string(qr.Metadatas[0][0]["book"].([]byte)))
+	fmt.Println(string(qr.Metadatas[0][0]["chapter"].([]byte)))
+	fmt.Println(string(qr.Metadatas[0][0]["verse"].([]byte)))
 }
