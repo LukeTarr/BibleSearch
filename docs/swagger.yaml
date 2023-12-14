@@ -1,0 +1,37 @@
+definitions:
+  model.QueryDTO:
+    properties:
+      query:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /query:
+    post:
+      consumes:
+      - application/json
+      description: query the vector database
+      parameters:
+      - description: query
+        in: body
+        name: query
+        required: true
+        schema:
+          $ref: '#/definitions/model.QueryDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: query the vector database
+      tags:
+      - query
+swagger: "2.0"

@@ -1,53 +1,43 @@
 package main
 
 import (
-	"BibleSearch/config"
-	"BibleSearch/data"
+	"BibleSearch/controllers"
+	"BibleSearch/docs"
 	"BibleSearch/services"
-	"fmt"
+	ginzerolog "github.com/dn365/gin-zerolog"
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
-	config.ReadDotEnv()
-	configuration := config.NewDefaultConfig()
 
-	log.Info().Msg("Creating Chroma Service and Collection")
+	// Setup configs, services, and chroma client
+	services.ReadDotEnv()
+	configuration := services.NewDefaultConfig()
+
 	chromaService := services.NewDefaultChromaService(configuration)
-	collection, err := chromaService.CreateCollection("bible")
+	_, err := chromaService.CreateCollection("bible")
 	if err != nil {
-		log.Error().Err(err).Msg("Error creating collection")
-		return
+		log.Fatal().Err(err).Msg("Error getting collection")
 	}
 
-	bookSlice, err := data.GetBookSlice()
+	vectorizationService := services.NewDefaultVectorizationService(configuration, chromaService)
+
+	r := gin.New()
+	r.Use(ginzerolog.Logger("gin"))
+	r.Use(gin.Recovery())
+
+	docs.SwaggerInfo.BasePath = "/api/v1"
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	root := r.Group("/")
+
+	controllers.RegisterAPIRoutes(root, vectorizationService, chromaService)
+
+	err = r.Run()
 	if err != nil {
-		log.Error().Err(err).Msg("Error getting book slice")
-		return
+		log.Fatal().Err(err).Msg("Error running server")
 	}
 
-	log.Info().Msg("Adding Documents to Collection")
-	err = chromaService.AddBooksToCollection(bookSlice)
-	if err != nil {
-		log.Error().Err(err).Msg("Error adding books to collection")
-		return
-	}
-
-	countDocs, err := chromaService.Collection.Count()
-	if err != nil {
-		log.Error().Err(err).Msg("Error `querying documents")
-		return
-	}
-
-	log.Info().Int32("docsCounter", countDocs).Msg("Counted documents")
-
-	qr, err := collection.Query([]string{"Formless, void, emptiness"}, 1, nil, nil, nil)
-	if err != nil {
-		log.Error().Err(err).Msg("Error `querying documents")
-		return
-	}
-
-	fmt.Println(string(qr.Metadatas[0][0]["book"].([]byte)))
-	fmt.Println(string(qr.Metadatas[0][0]["chapter"].([]byte)))
-	fmt.Println(string(qr.Metadatas[0][0]["verse"].([]byte)))
 }

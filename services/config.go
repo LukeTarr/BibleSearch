@@ -1,4 +1,4 @@
-package config
+package services
 
 import (
 	"github.com/joho/godotenv"
@@ -6,13 +6,13 @@ import (
 	"os"
 )
 
-type Config struct {
+type ConfigService struct {
 	ChromaURL string
 	OpenAIKey string
 }
 
-func NewDefaultConfig() *Config {
-	return &Config{
+func NewDefaultConfig() *ConfigService {
+	return &ConfigService{
 		ChromaURL: os.Getenv("CHROMA_URL"),
 		OpenAIKey: os.Getenv("OPENAI_API_KEY"),
 	}
