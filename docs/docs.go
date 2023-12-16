@@ -54,6 +54,40 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/vectorize": {
+            "post": {
+                "description": "start the vectorization process in the background",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "vectorize"
+                ],
+                "summary": "start the vectorization process in the background",
+                "parameters": [
+                    {
+                        "description": "query",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.VectorizeDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.StatusDTO"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -104,6 +138,25 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.ChromaQueryResultsDTO"
                     }
+                }
+            }
+        },
+        "model.StatusDTO": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VectorizeDTO": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
                 }
             }
         }

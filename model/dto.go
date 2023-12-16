@@ -4,6 +4,10 @@ type QueryDTO struct {
 	Query string `json:"query"`
 }
 
+type VectorizeDTO struct {
+	Password string `json:"password"`
+}
+
 type Metadata struct {
 	Book    string `json:"book"`
 	Chapter string `json:"chapter"`

@@ -7,14 +7,16 @@ import (
 )
 
 type ConfigService struct {
-	ChromaURL string
-	OpenAIKey string
+	ChromaURL             string
+	OpenAIKey             string
+	VectorizationPassword string
 }
 
 func NewDefaultConfig() *ConfigService {
 	return &ConfigService{
-		ChromaURL: os.Getenv("CHROMA_URL"),
-		OpenAIKey: os.Getenv("OPENAI_API_KEY"),
+		ChromaURL:             os.Getenv("CHROMA_URL"),
+		OpenAIKey:             os.Getenv("OPENAI_API_KEY"),
+		VectorizationPassword: os.Getenv("VECTORIZATION_PASSWORD"),
 	}
 }
 

@@ -57,7 +57,35 @@ func (v *VectorizationService) Vectorize(reset bool) {
 	log.Info().Int32("docsCounter", countDocs).Msg("Counted documents")
 }
 
+// HandleVectorizationRequest godoc
+// @Summary start the vectorization process in the background
+// @Schemes
+// @Description start the vectorization process in the background
+// @Tags vectorize
+// @Accept json
+// @Produce json
+// @Param query body model.VectorizeDTO true "query"
+// @Success 200 {object} model.StatusDTO
+// @Router /vectorize [post]
 func (v *VectorizationService) HandleVectorizationRequest(ctx *gin.Context) {
+	var vectorizeDTO model.VectorizeDTO
+	err := ctx.ShouldBindJSON(&vectorizeDTO)
+	if err != nil {
+		log.Error().Err(err).Msg("Vectorize hit with invalid body")
+		ctx.JSON(500, model.ErrorDTO{
+			Error: "string password required",
+		})
+		return
+	}
+
+	if vectorizeDTO.Password != v.ConfigService.VectorizationPassword {
+		log.Error().Msg("Vectorize hit with invalid password")
+		ctx.JSON(500, model.ErrorDTO{
+			Error: "invalid password",
+		})
+		return
+	}
+
 	go v.Vectorize(false)
 	ctx.JSON(200, model.StatusDTO{
 		Status:  "success",

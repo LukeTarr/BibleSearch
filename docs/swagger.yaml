@@ -31,6 +31,18 @@ definitions:
           $ref: '#/definitions/model.ChromaQueryResultsDTO'
         type: array
     type: object
+  model.StatusDTO:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.VectorizeDTO:
+    properties:
+      password:
+        type: string
+    type: object
 info:
   contact: {}
 paths:
@@ -60,4 +72,26 @@ paths:
       summary: query the vector database
       tags:
       - query
+  /vectorize:
+    post:
+      consumes:
+      - application/json
+      description: start the vectorization process in the background
+      parameters:
+      - description: query
+        in: body
+        name: query
+        required: true
+        schema:
+          $ref: '#/definitions/model.VectorizeDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StatusDTO'
+      summary: start the vectorization process in the background
+      tags:
+      - vectorize
 swagger: "2.0"
