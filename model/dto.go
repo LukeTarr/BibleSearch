@@ -10,11 +10,15 @@ type Metadata struct {
 	Verse   string `json:"verse"`
 }
 
-type QueryResultsDTO struct {
+type ChromaQueryResultsDTO struct {
 	Metadata Metadata `json:"metadata"`
 	Distance float64  `json:"distance"`
 	Text     string   `json:"text"`
 	Id       string   `json:"id"`
+}
+
+type QueryResultsDTO struct {
+	Result []ChromaQueryResultsDTO `json:"result"`
 }
 
 type StatusDTO struct {

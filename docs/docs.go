@@ -43,8 +43,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/model.QueryResultsDTO"
                         }
                     },
                     "500": {
@@ -58,11 +57,53 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "model.ChromaQueryResultsDTO": {
+            "type": "object",
+            "properties": {
+                "distance": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/model.Metadata"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Metadata": {
+            "type": "object",
+            "properties": {
+                "book": {
+                    "type": "string"
+                },
+                "chapter": {
+                    "type": "string"
+                },
+                "verse": {
+                    "type": "string"
+                }
+            }
+        },
         "model.QueryDTO": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string"
+                }
+            }
+        },
+        "model.QueryResultsDTO": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ChromaQueryResultsDTO"
+                    }
                 }
             }
         }

@@ -1,8 +1,35 @@
 definitions:
+  model.ChromaQueryResultsDTO:
+    properties:
+      distance:
+        type: number
+      id:
+        type: string
+      metadata:
+        $ref: '#/definitions/model.Metadata'
+      text:
+        type: string
+    type: object
+  model.Metadata:
+    properties:
+      book:
+        type: string
+      chapter:
+        type: string
+      verse:
+        type: string
+    type: object
   model.QueryDTO:
     properties:
       query:
         type: string
+    type: object
+  model.QueryResultsDTO:
+    properties:
+      result:
+        items:
+          $ref: '#/definitions/model.ChromaQueryResultsDTO'
+        type: array
     type: object
 info:
   contact: {}
@@ -25,8 +52,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/model.QueryResultsDTO'
         "500":
           description: Internal Server Error
           schema:

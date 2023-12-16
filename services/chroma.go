@@ -90,7 +90,7 @@ func (c *ChromaService) query(text []string, n int32, where map[string]interface
 // @Accept json
 // @Produce json
 // @Param query body model.QueryDTO true "query"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} model.QueryResultsDTO
 // @Failure 500 {string} model.ErrorDTO
 // @Router /query [post]
 func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
@@ -116,19 +116,63 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 		})
 		return
 	}
-	//
-	//documents := qr.Documents[0]
-	//metaDatas := qr.Metadatas[0]
-	//ids := qr.Ids[0]
-	//
-	//for idx, doc := range documents {
-	//	text := doc
-	//	metaData := metaDatas[idx]
-	//
-	//	id := ids[idx]
-	//
-	//
-	//}
 
-	ctx.JSON(200, qr)
+	documents := qr.Documents[0]
+	metaDatas := qr.Metadatas[0]
+	ids := qr.Ids[0]
+	distances := qr.Distances[0]
+
+	resultSlice := make([]model.ChromaQueryResultsDTO, 0)
+
+	for idx, doc := range documents {
+		text := doc
+		id := ids[idx]
+		distance := float64(distances[idx])
+
+		// TODO: There is probably a cleaner way to get all this metadata into the format we need
+		metaData := metaDatas[idx]
+		book, err := strconv.Unquote(string(metaData["book"].([]byte)))
+		if err != nil {
+			log.Error().Err(err).Msg("Error unquoting book")
+			ctx.JSON(500, model.ErrorDTO{
+				Error: "error unquoting book",
+			})
+			return
+		}
+
+		chapter, err := strconv.Unquote(string(metaData["chapter"].([]byte)))
+		if err != nil {
+			log.Error().Err(err).Msg("Error unquoting chapter")
+			ctx.JSON(500, model.ErrorDTO{
+				Error: "error unquoting chapter",
+			})
+			return
+		}
+
+		verse, err := strconv.Unquote(string(metaData["verse"].([]byte)))
+		if err != nil {
+			log.Error().Err(err).Msg("Error unquoting verse")
+			ctx.JSON(500, model.ErrorDTO{
+				Error: "error unquoting verse",
+			})
+			return
+		}
+
+		resultSlice = append(resultSlice, model.ChromaQueryResultsDTO{
+			Metadata: model.Metadata{
+				Book:    book,
+				Chapter: chapter,
+				Verse:   verse,
+			},
+			Distance: distance,
+			Text:     text,
+			Id:       id,
+		})
+	}
+
+	result := model.QueryResultsDTO{
+		Result: resultSlice,
+	}
+
+	ctx.JSON(200, result)
 }
