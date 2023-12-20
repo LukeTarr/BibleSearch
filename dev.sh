@@ -1,11 +1,1 @@
-echo "Swagger init"
-swag init
-
-echo "templ generate"
-templ generate
-
-echo "build"
-go build
-
-echo "run"
-./BibleSearch
+ air --build.cmd "swag init && go build -o bin/BibleSearch" --build.exclude_dir "docs" --build.bin "bin/BibleSearch"

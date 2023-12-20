@@ -23,3 +23,6 @@ go.work
 # BibleSearch
 .idea/
 .env
+BibleSearch
+bin/
+tmp/
