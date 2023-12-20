@@ -2,12 +2,14 @@ package services
 
 import (
 	"BibleSearch/model"
+	"BibleSearch/templates"
+	"strconv"
+	"time"
+
 	chroma "github.com/amikos-tech/chroma-go"
 	"github.com/amikos-tech/chroma-go/openai"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"strconv"
-	"time"
 )
 
 type ChromaService struct {
@@ -82,6 +84,50 @@ func (c *ChromaService) query(text []string, n int32, where map[string]interface
 	return qr, nil
 }
 
+func (c *ChromaService) getQueryResults(query string) (*[]model.ChromaQueryResultsDTO, error) {
+
+	input := []string{query}
+	n := int32(10)
+
+	qr, err := c.query(input, n, nil, nil, nil)
+	if err != nil {
+		log.Error().Err(err).Msg("Error querying")
+		return nil, err
+	}
+
+	documents := qr.Documents[0]
+	metaDatas := qr.Metadatas[0]
+	ids := qr.Ids[0]
+	distances := qr.Distances[0]
+
+	resultSlice := make([]model.ChromaQueryResultsDTO, 0)
+
+	for idx, doc := range documents {
+		text := doc
+		id := ids[idx]
+		distance := float64(distances[idx])
+
+		// The unquoting will never throw this error because we know the data in Chroma, so we can ignore the errors
+		metaData := metaDatas[idx]
+		book, _ := strconv.Unquote(string(metaData["book"].([]byte)))
+		chapter, _ := strconv.Unquote(string(metaData["chapter"].([]byte)))
+		verse, _ := strconv.Unquote(string(metaData["verse"].([]byte)))
+
+		resultSlice = append(resultSlice, model.ChromaQueryResultsDTO{
+			Metadata: model.Metadata{
+				Book:    book,
+				Chapter: chapter,
+				Verse:   verse,
+			},
+			Distance: distance,
+			Text:     text,
+			Id:       id,
+		})
+	}
+
+	return &resultSlice, nil
+}
+
 // HandleQueryRequest godoc
 // @Summary query the vector database
 // @Schemes
@@ -105,74 +151,28 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 		return
 	}
 
-	input := []string{queryDTO.Query}
-	n := int32(10)
-
-	qr, err := c.query(input, n, nil, nil, nil)
+	resultSlice, err := c.getQueryResults(queryDTO.Query)
 	if err != nil {
-		log.Error().Err(err).Msg("Error querying collection")
+		log.Error().Err(err).Msg("Error getting query results")
 		ctx.JSON(500, model.ErrorDTO{
-			Error: "error querying collection",
+			Error: "error getting query results",
 		})
 		return
 	}
 
-	documents := qr.Documents[0]
-	metaDatas := qr.Metadatas[0]
-	ids := qr.Ids[0]
-	distances := qr.Distances[0]
-
-	resultSlice := make([]model.ChromaQueryResultsDTO, 0)
-
-	for idx, doc := range documents {
-		text := doc
-		id := ids[idx]
-		distance := float64(distances[idx])
-
-		// TODO: There is probably a cleaner way to get all this metadata into the format we need
-		metaData := metaDatas[idx]
-		book, err := strconv.Unquote(string(metaData["book"].([]byte)))
-		if err != nil {
-			log.Error().Err(err).Msg("Error unquoting book")
-			ctx.JSON(500, model.ErrorDTO{
-				Error: "error unquoting book",
-			})
-			return
-		}
-
-		chapter, err := strconv.Unquote(string(metaData["chapter"].([]byte)))
-		if err != nil {
-			log.Error().Err(err).Msg("Error unquoting chapter")
-			ctx.JSON(500, model.ErrorDTO{
-				Error: "error unquoting chapter",
-			})
-			return
-		}
-
-		verse, err := strconv.Unquote(string(metaData["verse"].([]byte)))
-		if err != nil {
-			log.Error().Err(err).Msg("Error unquoting verse")
-			ctx.JSON(500, model.ErrorDTO{
-				Error: "error unquoting verse",
-			})
-			return
-		}
-
-		resultSlice = append(resultSlice, model.ChromaQueryResultsDTO{
-			Metadata: model.Metadata{
-				Book:    book,
-				Chapter: chapter,
-				Verse:   verse,
-			},
-			Distance: distance,
-			Text:     text,
-			Id:       id,
-		})
-	}
-
 	result := model.QueryResultsDTO{
-		Result: resultSlice,
+		Result: *resultSlice,
 	}
 
 	ctx.JSON(200, result)
+}
+
+func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
+
+	query := ctx.PostForm("query")
+	resultSlice, _ := c.getQueryResults(query)
+
+	comp := templates.SearchResults(*resultSlice)
+	ctx.Writer.Header().Set("Content-Type", "text/html")
+	comp.Render(ctx.Request.Context(), ctx.Writer)
 }

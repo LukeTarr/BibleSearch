@@ -34,7 +34,7 @@ func main() {
 	controllers.RegisterAPIRoutes(root, vectorizationService, chromaService)
 
 	// Pages routes
-	controllers.RegisterPages(root)
+	controllers.RegisterPages(root, chromaService)
 
 	err = r.Run()
 	if err != nil {

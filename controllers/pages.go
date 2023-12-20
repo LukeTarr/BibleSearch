@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"BibleSearch/docs"
+	"BibleSearch/services"
 	"BibleSearch/templates"
 	"context"
 
@@ -10,7 +11,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func RegisterPages(supergroup *gin.RouterGroup) {
+func RegisterPages(supergroup *gin.RouterGroup, chromaService *services.ChromaService) {
 
 	// Swagger docs
 	docs.SwaggerInfo.BasePath = "/api/v1"
@@ -21,4 +22,6 @@ func RegisterPages(supergroup *gin.RouterGroup) {
 		c.Writer.Header().Set("Content-Type", "text/html")
 		comp.Render(context.Background(), c.Writer)
 	})
+
+	supergroup.POST("/search", chromaService.HandleHTMXQuery)
 }

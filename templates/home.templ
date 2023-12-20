@@ -1,5 +1,9 @@
 package templates
 
+import (
+    "BibleSearch/model"
+)
+
 templ Header(){
   <head>
     <meta charset="UTF-8" />
@@ -62,24 +66,35 @@ templ SearchBar(){
       <input type="search" id="query" name="query"
         class="block w-full p-4 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
         placeholder="Search Parables, Sayings, Quotes..." required />
-      <button type="submit"
+      <button 
+        type="submit"
+        hx-post="/search"
+        hx-trigger="click"
+        hx-target="#searchResultArea"
+        hx-swap="outerHTML"
         class="text-white absolute end-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Search</button>
     </div>
   </form>
 </div>
 }
 
-templ SearchResults(){
+templ SearchResults(results []model.ChromaQueryResultsDTO) {
+<div id="searchResultArea" class="w-full">
+
+  for _ , item := range results {
   <div class="flex items-center justify-center flex-row m-4">
   
     <a href="#"
       class="block max-w-xl p-6 bg-white border border-gray-200 rounded-lg shadow hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
   
-      <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">In the beginning God created the heaven and the earth.</h5>
-      <p class="font-normal text-gray-700 dark:text-gray-400">Book, Chapter, Verse</p>
+      <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"> {item.Text }</h5>
+      <p class="font-normal text-gray-700 dark:text-gray-400">{ item.Metadata.Book }, { item.Metadata.Chapter }, { item.Metadata.Verse }</p>
     </a>
   
   </div>
+
+  }
+</div>
 }
 
 templ Home() {
@@ -99,13 +114,7 @@ templ Home() {
     </p>
 
     @SearchBar()
-
-    <div id="searchResultArea" class="w-full">
-    @SearchResults()
-    @SearchResults()
-    @SearchResults()
-    @SearchResults()
-    </div>
+    @SearchResults(nil)
 
     </div>
   </div>
