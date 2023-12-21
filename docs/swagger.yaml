@@ -16,6 +16,8 @@ definitions:
         type: string
       chapter:
         type: string
+      referenceLink:
+        type: string
       verse:
         type: string
     type: object

@@ -9,9 +9,10 @@ type VectorizeDTO struct {
 }
 
 type Metadata struct {
-	Book    string `json:"book"`
-	Chapter string `json:"chapter"`
-	Verse   string `json:"verse"`
+	Book          string `json:"book"`
+	Chapter       string `json:"chapter"`
+	Verse         string `json:"verse"`
+	ReferenceLink string `json:"referenceLink"`
 }
 
 type ChromaQueryResultsDTO struct {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"BibleSearch/data"
 	"BibleSearch/model"
 	"BibleSearch/templates"
 	"strconv"
@@ -115,9 +116,10 @@ func (c *ChromaService) getQueryResults(query string) (*[]model.ChromaQueryResul
 
 		resultSlice = append(resultSlice, model.ChromaQueryResultsDTO{
 			Metadata: model.Metadata{
-				Book:    book,
-				Chapter: chapter,
-				Verse:   verse,
+				Book:          book,
+				Chapter:       chapter,
+				Verse:         verse,
+				ReferenceLink: "https://www.bible.com/bible/1/" + data.BookAbbrevMap[book] + "." + chapter,
 			},
 			Distance: distance,
 			Text:     text,

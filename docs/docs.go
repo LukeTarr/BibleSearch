@@ -117,6 +117,9 @@ const docTemplate = `{
                 "chapter": {
                     "type": "string"
                 },
+                "referenceLink": {
+                    "type": "string"
+                },
                 "verse": {
                     "type": "string"
                 }
