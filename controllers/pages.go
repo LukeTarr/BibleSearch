@@ -23,5 +23,11 @@ func RegisterPages(supergroup *gin.RouterGroup, chromaService *services.ChromaSe
 		comp.Render(context.Background(), c.Writer)
 	})
 
+	supergroup.GET("/about", func(c *gin.Context) {
+		comp := templates.About()
+		c.Writer.Header().Set("Content-Type", "text/html")
+		comp.Render(context.Background(), c.Writer)
+	})
+
 	supergroup.POST("/search", chromaService.HandleHTMXQuery)
 }
