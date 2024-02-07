@@ -26,3 +26,4 @@ go.work
 BibleSearch
 bin/
 tmp/
+.DS_Store

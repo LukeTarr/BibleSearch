@@ -153,6 +153,8 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 		return
 	}
 
+	log.Info().Str("query", queryDTO.Query).Msg("Received API query request")
+
 	resultSlice, err := c.getQueryResults(queryDTO.Query)
 	if err != nil {
 		log.Error().Err(err).Msg("Error getting query results")
@@ -172,6 +174,7 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
 
 	query := ctx.PostForm("query")
+	log.Info().Str("query", query).Msg("Received HTMX query request")
 	resultSlice, _ := c.getQueryResults(query)
 
 	comp := templates.SearchResults(*resultSlice)
