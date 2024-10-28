@@ -1,8 +1,25 @@
-FROM golang:1.21.5-bookworm
-
+# Fetch
+FROM golang:latest AS fetch-stage
+COPY go.mod go.sum /app/
 WORKDIR /app
+RUN go mod tidy
 
-COPY . .
+# Generate Templ files
+FROM ghcr.io/a-h/templ:latest AS generate-stage
+COPY --chown=65532:65532 . /app
+WORKDIR /app
+RUN ["templ", "generate"]
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /biblesearch
-CMD sleep 3 && /biblesearch
+# Build
+FROM golang:latest AS build-stage
+COPY --from=generate-stage /app /app
+WORKDIR /app
+RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o /app/biblesearch
+
+# Run
+FROM scratch AS run-stage
+WORKDIR /
+COPY --from=build-stage /app/biblesearch /biblesearch
+COPY ./assets /assets
+EXPOSE 3000
+ENTRYPOINT ["/biblesearch"]
