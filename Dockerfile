@@ -21,5 +21,5 @@ FROM scratch AS run-stage
 WORKDIR /
 COPY --from=build-stage /app/biblesearch /biblesearch
 COPY ./assets /assets
-EXPOSE 3000
+EXPOSE 8080
 ENTRYPOINT ["/biblesearch"]
