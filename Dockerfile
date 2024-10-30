@@ -17,10 +17,11 @@ WORKDIR /app
 RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o /app/biblesearch
 
 # Run
-FROM scratch AS run-stage
+FROM alpine:latest AS run-stage
 WORKDIR /
 COPY --from=build-stage /app/biblesearch /biblesearch
 COPY ./assets /assets
 COPY ./data /data
+COPY .env /.env
 EXPOSE 8080
 ENTRYPOINT ["/biblesearch"]

@@ -4,8 +4,6 @@ import (
 	"BibleSearch/data"
 	"BibleSearch/model"
 	"BibleSearch/templates"
-	"crypto/tls"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -23,11 +21,6 @@ type ChromaService struct {
 
 func NewDefaultChromaService(configService *ConfigService) *ChromaService {
 	client := chroma.NewClient(configService.ChromaURL)
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	client.ApiClient.GetConfig().HTTPClient = &http.Client{Transport: tr}
 	return &ChromaService{
 		Client:        client,
 		ConfigService: configService,
@@ -58,8 +51,6 @@ func (c *ChromaService) CreateCollection(collectionName string) (*chroma.Collect
 func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 	globalCounter := 0
 
-	embeddingFunction := openai.NewOpenAIEmbeddingFunction(c.ConfigService.OpenAIKey)
-
 	for _, book := range *bookSlice {
 		for chapterCounter, chapter := range book.Chapters {
 			for verseCounter, verse := range chapter {
@@ -69,14 +60,9 @@ func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 					"verse":   strconv.Itoa(verseCounter + 1),
 				}}
 
-				embedding, err := embeddingFunction.CreateEmbedding([]string{verse})
-				if err != nil {
-					return err
-				}
-
 				successful := false
 				for !successful {
-					_, err := c.Collection.Add(embedding, metadatas, []string{verse}, []string{strconv.Itoa(globalCounter)})
+					_, err := c.Collection.Add(nil, metadatas, []string{verse}, []string{strconv.Itoa(globalCounter)})
 					if err != nil {
 						log.Error().Err(err).Msg("Error adding documents, retrying")
 						time.Sleep(5 * time.Second)
