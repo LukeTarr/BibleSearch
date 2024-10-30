@@ -4,6 +4,8 @@ import (
 	"BibleSearch/data"
 	"BibleSearch/model"
 	"BibleSearch/templates"
+	"crypto/tls"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -21,6 +23,11 @@ type ChromaService struct {
 
 func NewDefaultChromaService(configService *ConfigService) *ChromaService {
 	client := chroma.NewClient(configService.ChromaURL)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	client.ApiClient.GetConfig().HTTPClient = &http.Client{Transport: tr}
 	return &ChromaService{
 		Client:        client,
 		ConfigService: configService,
