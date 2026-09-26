@@ -175,7 +175,12 @@ func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
 
 	query := ctx.PostForm("query")
 	log.Info().Str("query", query).Msg("Received HTMX query request")
-	resultSlice, _ := c.getQueryResults(query)
+	resultSlice, err := c.getQueryResults(query)
+	if err != nil {
+		log.Error().Err(err).Msg("Error getting query results")
+		ctx.String(500, "error getting query results")
+		return
+	}
 
 	comp := templates.SearchResults(*resultSlice)
 	ctx.Writer.Header().Set("Content-Type", "text/html")
