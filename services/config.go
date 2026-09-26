@@ -23,6 +23,6 @@ func NewDefaultConfig() *ConfigService {
 func ReadDotEnv() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Error().Err(err).Msg("Error loading .env file")
+		log.Info().Msg("No .env file found, using environment variables")
 	}
 }

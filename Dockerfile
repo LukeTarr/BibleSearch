@@ -22,6 +22,5 @@ WORKDIR /
 COPY --from=build-stage /app/biblesearch /biblesearch
 COPY ./assets /assets
 COPY ./data /data
-COPY .env /.env
 EXPOSE 8080
 ENTRYPOINT ["/biblesearch"]
