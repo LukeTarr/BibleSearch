@@ -5,7 +5,7 @@ WORKDIR /app
 RUN go mod tidy
 
 # Generate Templ files
-FROM ghcr.io/a-h/templ:latest AS generate-stage
+FROM ghcr.io/a-h/templ:v0.2.778 AS generate-stage
 COPY --chown=65532:65532 . /app
 WORKDIR /app
 RUN ["templ", "generate"]
