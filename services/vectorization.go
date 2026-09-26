@@ -29,7 +29,7 @@ func (v *VectorizationService) Vectorize(reset bool) {
 	}
 
 	log.Info().Msg("Creating Collection")
-	_, err := v.ChromaService.CreateCollection("bible")
+	_, err := v.ChromaService.CreateCollection(CollectionName)
 	if err != nil {
 		log.Error().Err(err).Msg("Error creating collection")
 		return

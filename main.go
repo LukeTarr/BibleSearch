@@ -16,7 +16,7 @@ func main() {
 	configuration := services.NewDefaultConfig()
 
 	chromaService := services.NewDefaultChromaService(configuration)
-	_, err := chromaService.CreateCollection("bible")
+	_, err := chromaService.CreateCollection(services.CollectionName)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error getting collection")
 	}

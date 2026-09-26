@@ -13,6 +13,22 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Changing the embedding model requires a new collection, since vectors from different models aren't comparable
+const (
+	EmbeddingModel = "text-embedding-3-small"
+	CollectionName = "bible-" + EmbeddingModel
+)
+
+// modelEmbeddingFunction wraps the chroma-go OpenAI embedding function, which hardcodes text-embedding-ada-002
+type modelEmbeddingFunction struct {
+	*openai.OpenAIEmbeddingFunction
+	model string
+}
+
+func (e *modelEmbeddingFunction) CreateEmbedding(documents []string) ([][]float32, error) {
+	return e.CreateEmbeddingWithModel(documents, e.model)
+}
+
 type ChromaService struct {
 	Client        *chroma.Client
 	ConfigService *ConfigService
@@ -38,7 +54,10 @@ func (c *ChromaService) ResetClient() error {
 
 func (c *ChromaService) CreateCollection(collectionName string) (*chroma.Collection, error) {
 	meta := map[string]interface{}{}
-	embeddingFunction := openai.NewOpenAIEmbeddingFunction(c.ConfigService.OpenAIKey)
+	embeddingFunction := &modelEmbeddingFunction{
+		OpenAIEmbeddingFunction: openai.NewOpenAIEmbeddingFunction(c.ConfigService.OpenAIKey),
+		model:                   EmbeddingModel,
+	}
 	collection, err := c.Client.CreateCollection(collectionName, meta, true, embeddingFunction, chroma.L2)
 	if err != nil {
 		return nil, err
