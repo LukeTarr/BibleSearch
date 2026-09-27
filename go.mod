@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	github.com/a-h/templ v0.2.778
-	github.com/amikos-tech/chroma-go v0.0.0-20230901221218-d0087270239e
 	github.com/dn365/gin-zerolog v0.0.0-20171227063204-b43714b00db1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/joho/godotenv v1.5.1

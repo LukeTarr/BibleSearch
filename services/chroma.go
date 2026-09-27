@@ -4,11 +4,12 @@ import (
 	"BibleSearch/data"
 	"BibleSearch/model"
 	"BibleSearch/templates"
+	"context"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
-	chroma "github.com/amikos-tech/chroma-go"
-	"github.com/amikos-tech/chroma-go/openai"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )
@@ -19,130 +20,138 @@ const (
 	CollectionName = "bible-" + EmbeddingModel
 )
 
-// modelEmbeddingFunction wraps the chroma-go OpenAI embedding function, which hardcodes text-embedding-ada-002
-type modelEmbeddingFunction struct {
-	*openai.OpenAIEmbeddingFunction
-	model string
-}
+// Verses per OpenAI embeddings request and Chroma add. OpenAI accepts up to 2048 inputs per request.
+const vectorizeBatchSize = 1000
 
-func (e *modelEmbeddingFunction) CreateEmbedding(documents []string) ([][]float32, error) {
-	return e.CreateEmbeddingWithModel(documents, e.model)
-}
+// Batches embedded and added at the same time. Higher values may run into OpenAI's tokens-per-minute limit,
+// which the retry loop absorbs.
+const vectorizeConcurrency = 4
 
 type ChromaService struct {
-	Client        *chroma.Client
 	ConfigService *ConfigService
-	Collection    *chroma.Collection
+	CollectionID  string
+	chroma        *chromaClient
+	openai        *OpenAIClient
 }
 
 func NewDefaultChromaService(configService *ConfigService) *ChromaService {
-	client := chroma.NewClient(configService.ChromaURL)
 	return &ChromaService{
-		Client:        client,
 		ConfigService: configService,
-		Collection:    nil,
+		chroma:        newChromaClient(configService.ChromaURL),
+		openai:        NewOpenAIClient(configService.OpenAIKey, EmbeddingModel),
 	}
 }
 
 func (c *ChromaService) ResetClient() error {
-	_, err := c.Client.Reset()
+	return c.chroma.reset(context.Background())
+}
+
+func (c *ChromaService) CreateCollection(collectionName string) error {
+	id, err := c.chroma.getOrCreateCollection(context.Background(), collectionName)
 	if err != nil {
 		return err
 	}
+
+	c.CollectionID = id
 	return nil
 }
 
-func (c *ChromaService) CreateCollection(collectionName string) (*chroma.Collection, error) {
-	meta := map[string]interface{}{}
-	embeddingFunction := &modelEmbeddingFunction{
-		OpenAIEmbeddingFunction: openai.NewOpenAIEmbeddingFunction(c.ConfigService.OpenAIKey),
-		model:                   EmbeddingModel,
-	}
-	collection, err := c.Client.CreateCollection(collectionName, meta, true, embeddingFunction, chroma.L2)
-	if err != nil {
-		return nil, err
-	}
-
-	c.Collection = collection
-	return collection, nil
+func (c *ChromaService) Count() (int, error) {
+	return c.chroma.count(context.Background(), c.CollectionID)
 }
 
 func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
-	globalCounter := 0
+	var ids, documents []string
+	var metadatas []verseMetadata
 
 	for _, book := range *bookSlice {
 		for chapterCounter, chapter := range book.Chapters {
 			for verseCounter, verse := range chapter {
-				metadatas := []map[string]interface{}{{
-					"book":    book.Name,
-					"chapter": strconv.Itoa(chapterCounter + 1),
-					"verse":   strconv.Itoa(verseCounter + 1),
-				}}
-
-				successful := false
-				for !successful {
-					_, err := c.Collection.Add(nil, metadatas, []string{verse}, []string{strconv.Itoa(globalCounter)})
-					if err != nil {
-						log.Error().Err(err).Msg("Error adding documents, retrying")
-						time.Sleep(5 * time.Second)
-					} else {
-						successful = true
-					}
-				}
-				globalCounter++
+				ids = append(ids, strconv.Itoa(len(ids)))
+				documents = append(documents, verse)
+				metadatas = append(metadatas, verseMetadata{
+					Book:    book.Name,
+					Chapter: strconv.Itoa(chapterCounter + 1),
+					Verse:   strconv.Itoa(verseCounter + 1),
+				})
 			}
 		}
 	}
+
+	ctx := context.Background()
+	// Buffered channel as a counting semaphore: at most vectorizeConcurrency batches in flight
+	sem := make(chan struct{}, vectorizeConcurrency)
+	var wg sync.WaitGroup
+	var added atomic.Int64
+
+	for start := 0; start < len(ids); start += vectorizeBatchSize {
+		end := min(start+vectorizeBatchSize, len(ids))
+
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(start, end int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			for {
+				err := c.addBatch(ctx, ids[start:end], documents[start:end], metadatas[start:end])
+				if err == nil {
+					break
+				}
+				log.Error().Err(err).Int("start", start).Msg("Error adding documents, retrying")
+				time.Sleep(5 * time.Second)
+			}
+			log.Info().Int64("added", added.Add(int64(end-start))).Int("total", len(ids)).Msg("Added batch")
+		}(start, end)
+	}
+
+	wg.Wait()
 	return nil
 }
 
-func (c *ChromaService) query(text []string, n int32, where map[string]interface{}, whereDocuments map[string]interface{}, include []chroma.QueryEnum) (*chroma.QueryResults, error) {
-	qr, err := c.Collection.Query(text, n, where, whereDocuments, include)
+func (c *ChromaService) addBatch(ctx context.Context, ids []string, documents []string, metadatas []verseMetadata) error {
+	embeddings, err := c.openai.Embed(ctx, documents)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return qr, nil
+	return c.chroma.add(ctx, c.CollectionID, ids, embeddings, documents, metadatas)
 }
 
-func (c *ChromaService) getQueryResults(query string) (*[]model.ChromaQueryResultsDTO, error) {
+func (c *ChromaService) getQueryResults(ctx context.Context, query string) (*[]model.ChromaQueryResultsDTO, error) {
+	embeddings, err := c.openai.Embed(ctx, []string{query})
+	if err != nil {
+		log.Error().Err(err).Msg("Error embedding query")
+		return nil, err
+	}
 
-	input := []string{query}
-	n := int32(10)
-
-	qr, err := c.query(input, n, nil, nil, nil)
+	qr, err := c.chroma.query(ctx, c.CollectionID, embeddings[0], 10)
 	if err != nil {
 		log.Error().Err(err).Msg("Error querying")
 		return nil, err
 	}
 
+	resultSlice := make([]model.ChromaQueryResultsDTO, 0)
+	if len(qr.IDs) == 0 {
+		return &resultSlice, nil
+	}
+
 	documents := qr.Documents[0]
 	metaDatas := qr.Metadatas[0]
-	ids := qr.Ids[0]
+	ids := qr.IDs[0]
 	distances := qr.Distances[0]
 
-	resultSlice := make([]model.ChromaQueryResultsDTO, 0)
-
 	for idx, doc := range documents {
-		text := doc
-		id := ids[idx]
-		distance := float64(distances[idx])
-
-		// The unquoting will never throw this error because we know the data in Chroma, so we can ignore the errors
 		metaData := metaDatas[idx]
-		book, _ := strconv.Unquote(string(metaData["book"].([]byte)))
-		chapter, _ := strconv.Unquote(string(metaData["chapter"].([]byte)))
-		verse, _ := strconv.Unquote(string(metaData["verse"].([]byte)))
-
 		resultSlice = append(resultSlice, model.ChromaQueryResultsDTO{
 			Metadata: model.Metadata{
-				Book:          book,
-				Chapter:       chapter,
-				Verse:         verse,
-				ReferenceLink: "https://www.bible.com/bible/1/" + data.BookAbbrevMap[book] + "." + chapter,
+				Book:          metaData.Book,
+				Chapter:       metaData.Chapter,
+				Verse:         metaData.Verse,
+				ReferenceLink: "https://www.bible.com/bible/1/" + data.BookAbbrevMap[metaData.Book] + "." + metaData.Chapter,
 			},
-			Distance: distance,
-			Text:     text,
-			Id:       id,
+			Distance: distances[idx],
+			Text:     doc,
+			Id:       ids[idx],
 		})
 	}
 
@@ -174,7 +183,7 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 
 	log.Info().Str("query", queryDTO.Query).Msg("Received API query request")
 
-	resultSlice, err := c.getQueryResults(queryDTO.Query)
+	resultSlice, err := c.getQueryResults(ctx.Request.Context(), queryDTO.Query)
 	if err != nil {
 		log.Error().Err(err).Msg("Error getting query results")
 		ctx.JSON(500, model.ErrorDTO{
@@ -194,7 +203,7 @@ func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
 
 	query := ctx.PostForm("query")
 	log.Info().Str("query", query).Msg("Received HTMX query request")
-	resultSlice, err := c.getQueryResults(query)
+	resultSlice, err := c.getQueryResults(ctx.Request.Context(), query)
 	if err != nil {
 		log.Error().Err(err).Msg("Error getting query results")
 		ctx.String(500, "error getting query results")

@@ -5,14 +5,12 @@ networks:
     driver: bridge
 services:
   server:
-    image: ghcr.io/chroma-core/chroma:latest
+    # Pinned: the app talks to Chroma's v2 REST API directly (services/chromaclient.go)
+    image: ghcr.io/chroma-core/chroma:1.5.9
     environment:
-      - IS_PERSISTENT=TRUE
-      - ALLOW_RESET=TRUE
+      - CHROMA_ALLOW_RESET=true
     volumes:
-      # Default configuration for persist_directory in chromadb/config.py
-      # Currently it's located in "/chroma/chroma/"
-      - chroma-data:/chroma/chroma/
+      - chroma-data:/data
     ports:
       - "8000:8000"
     networks:

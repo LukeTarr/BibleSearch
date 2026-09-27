@@ -4,6 +4,7 @@ import (
 	"BibleSearch/model"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"time"
 )
 
 type VectorizationService struct {
@@ -19,6 +20,8 @@ func NewDefaultVectorizationService(configService *ConfigService, chromaService 
 }
 
 func (v *VectorizationService) Vectorize(reset bool) {
+	start := time.Now()
+
 	if reset {
 		log.Info().Msg("Resetting Client")
 		err := v.ChromaService.ResetClient()
@@ -29,7 +32,7 @@ func (v *VectorizationService) Vectorize(reset bool) {
 	}
 
 	log.Info().Msg("Creating Collection")
-	_, err := v.ChromaService.CreateCollection(CollectionName)
+	err := v.ChromaService.CreateCollection(CollectionName)
 	if err != nil {
 		log.Error().Err(err).Msg("Error creating collection")
 		return
@@ -48,13 +51,13 @@ func (v *VectorizationService) Vectorize(reset bool) {
 		return
 	}
 
-	countDocs, err := v.ChromaService.Collection.Count()
+	countDocs, err := v.ChromaService.Count()
 	if err != nil {
-		log.Error().Err(err).Msg("Error `querying documents")
+		log.Error().Err(err).Msg("Error counting documents")
 		return
 	}
 
-	log.Info().Int32("docsCounter", countDocs).Msg("Counted documents")
+	log.Info().Int("docsCounter", countDocs).Dur("elapsed", time.Since(start)).Msg("Counted documents")
 }
 
 // HandleVectorizationRequest godoc

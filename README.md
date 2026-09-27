@@ -12,8 +12,8 @@ closest in *meaning*, even when they share no words with your query. It uses the
 It's a semantic search built on vector embeddings:
 
 1. **Vectorize (one time):** every verse in `data/en_kjv.json` is sent to OpenAI's `text-embedding-3-small`
-   model, which turns it into a 1536-number vector that captures its meaning. Chroma, a vector database,
-   stores those vectors along with the book, chapter and verse number.
+   model in batches of 1,000, which turns each one into a 1536-number vector that captures its meaning.
+   Chroma, a vector database, stores those vectors along with the book, chapter and verse number.
 2. **Search:** your query is embedded with the same model, and Chroma returns the 10 verses whose vectors
    are nearest to it (L2 distance). Near vectors mean similar meaning.
 
@@ -26,7 +26,8 @@ The query and the stored verses must be embedded with the same model. If you cha
 - **[templ](https://templ.guide/)**: type-safe HTML templates (`templates/*.templ` → generated `*_templ.go`)
 - **[htmx](https://htmx.org/)**: the search box posts to `/search` and swaps in the results HTML (no JS framework)
 - **Tailwind + Flowbite**: styling, loaded from CDNs in `templates/header.templ`
-- **[Chroma](https://www.trychroma.com/)**: vector database, via `amikos-tech/chroma-go`
+- **[Chroma](https://www.trychroma.com/)** 1.x: vector database, called through its v2 REST API with plain
+  `net/http`. OpenAI embeddings are called the same way. No client libraries.
 - **Swagger** (`swaggo`): API docs at `/swagger/index.html`
 
 ## Project layout
@@ -36,6 +37,8 @@ main.go              startup: config, Chroma collection, routes
 controllers/         route registration (pages + /api/v1)
 services/
   chroma.go          collection setup, embedding model, query + HTMX handlers
+  chromaclient.go    minimal Chroma v2 REST client
+  openai.go          OpenAI embeddings client
   vectorization.go   loads the Bible and embeds every verse into Chroma
   config.go          env vars / .env loading
   data.go            parses data/en_kjv.json
@@ -77,9 +80,9 @@ VECTORIZATION_PASSWORD=pick-something
 After editing a `.templ` file, run `templ generate`. The generated `*_templ.go` files are committed.
 
 **4. Load the verses** (one time per Chroma volume). Open http://localhost:8080/swagger/index.html and call
-`POST /api/v1/vectorize` with `{"password": "<VECTORIZATION_PASSWORD>"}`. It runs in the background: one
-embedding call per verse, which takes a while and costs a few cents. The server logs `Counted documents`
-when it's done. Don't start it twice at the same time.
+`POST /api/v1/vectorize` with `{"password": "<VECTORIZATION_PASSWORD>"}`. It runs in the background: about
+30 batched embedding calls, which take a minute or two and cost a couple of cents. The server logs
+`Counted documents` when it's done. Don't start it twice at the same time.
 
 ## API
 
@@ -93,6 +96,7 @@ when it's done. Don't start it twice at the same time.
 ## Deployment
 
 Production runs on a VPS with [Coolify](https://coolify.io/), which builds the `Dockerfile` on every push to
-`main`. Chroma runs as a separate container. Secrets come from Coolify's environment variables at runtime.
+`main`. Chroma runs as a separate container, pinned to the same image tag as `docker-compose.yml` (data at
+`/data`, `CHROMA_ALLOW_RESET=true`). Secrets come from Coolify's environment variables at runtime.
 No `.env` file ends up in the image, and the app falls back to the environment when the file isn't there.
 The templ generator image in the `Dockerfile` is pinned to match `go.mod`. Bump both together.
