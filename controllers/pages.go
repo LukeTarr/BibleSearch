@@ -3,30 +3,22 @@ package controllers
 import (
 	"BibleSearch/docs"
 	"BibleSearch/services"
-	"BibleSearch/templates"
-	"context"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
-	swaggerfiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func RegisterPages(supergroup *gin.RouterGroup, chromaService *services.ChromaService) {
 
-	// Swagger docs
-	docs.SwaggerInfo.BasePath = "/api/v1"
-	supergroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	// Swagger UI + hand-written OpenAPI spec
+	supergroup.StaticFS("/swagger", http.FS(docs.FS))
 
 	supergroup.GET("/", func(c *gin.Context) {
-		comp := templates.Home()
-		c.Writer.Header().Set("Content-Type", "text/html")
-		comp.Render(context.Background(), c.Writer)
+		c.HTML(http.StatusOK, "home", nil)
 	})
 
 	supergroup.GET("/about", func(c *gin.Context) {
-		comp := templates.About()
-		c.Writer.Header().Set("Content-Type", "text/html")
-		comp.Render(context.Background(), c.Writer)
+		c.HTML(http.StatusOK, "about", nil)
 	})
 
 	supergroup.POST("/search", chromaService.HandleHTMXQuery)

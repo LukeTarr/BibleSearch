@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: BibleSearch API
+  description: Semantic search over the King James Bible.
+  version: "1.0"
+servers:
+  - url: /api/v1
+paths:
+  /query:
+    post:
+      tags: [query]
+      summary: Search for the 10 verses closest in meaning to the query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Query"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResults"
+        "400":
+          description: Invalid JSON, or a query that is empty or longer than 500 characters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Embedding or vector search failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /vectorize:
+    post:
+      tags: [vectorize]
+      summary: Embed every verse into Chroma in the background
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Vectorize"
+      responses:
+        "200":
+          description: Vectorization started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+        "400":
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Wrong password, or no password configured on the server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Vectorization is already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Query:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          maxLength: 500
+          example: don't worry about tomorrow
+    QueryResults:
+      type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryResult"
+    QueryResult:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        distance:
+          type: number
+          description: Squared L2 distance; smaller is closer
+        metadata:
+          $ref: "#/components/schemas/Metadata"
+    Metadata:
+      type: object
+      properties:
+        book:
+          type: string
+        chapter:
+          type: string
+        verse:
+          type: string
+        referenceLink:
+          type: string
+    Vectorize:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+    Status:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+    Error:
+      type: object
+      properties:
+        error:
+          type: string

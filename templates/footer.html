@@ -1,0 +1,18 @@
+{{define "footer"}}
+  <script>
+    // Mobile navbar toggle. The listener is on document so it survives hx-boost body swaps, and the guard
+    // stops htmx from adding it again when it re-runs this script after each boosted navigation.
+    if (!window.navbarToggleBound) {
+      window.navbarToggleBound = true;
+      document.addEventListener("click", (e) => {
+        const toggle = e.target.closest("#navbar-toggle");
+        if (!toggle) return;
+        const menu = document.getElementById("navbar-default");
+        const hidden = menu.classList.toggle("hidden");
+        toggle.setAttribute("aria-expanded", String(!hidden));
+      });
+    }
+  </script>
+</body>
+</html>
+{{end}}

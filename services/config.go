@@ -10,6 +10,8 @@ type ConfigService struct {
 	ChromaURL             string
 	OpenAIKey             string
 	VectorizationPassword string
+	// Dev loads templates from disk on every request instead of from the binary
+	Dev bool
 }
 
 func NewDefaultConfig() *ConfigService {
@@ -17,6 +19,7 @@ func NewDefaultConfig() *ConfigService {
 		ChromaURL:             os.Getenv("CHROMA_URL"),
 		OpenAIKey:             os.Getenv("OPENAI_API_KEY"),
 		VectorizationPassword: os.Getenv("VECTORIZATION_PASSWORD"),
+		Dev:                   os.Getenv("DEV") == "true",
 	}
 }
 

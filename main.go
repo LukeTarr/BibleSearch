@@ -3,6 +3,7 @@ package main
 import (
 	"BibleSearch/controllers"
 	"BibleSearch/services"
+	"BibleSearch/templates"
 
 	ginzerolog "github.com/dn365/gin-zerolog"
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,14 @@ func main() {
 	r := gin.New()
 	r.Use(ginzerolog.Logger("gin"))
 	r.Use(gin.Recovery())
-	r.Static("./assets", "./assets")
+	r.Static("/assets", "./assets")
+
+	// Dev reads templates from disk and gin re-parses them on every request, so edits show on refresh
+	if configuration.Dev {
+		r.LoadHTMLGlob("templates/*.html")
+	} else {
+		r.SetHTMLTemplate(templates.Parse())
+	}
 	root := r.Group("/")
 
 	// API routes

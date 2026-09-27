@@ -2,14 +2,18 @@ package services
 
 import (
 	"BibleSearch/model"
+	"crypto/subtle"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"net/http"
+	"sync/atomic"
 	"time"
 )
 
 type VectorizationService struct {
 	ChromaService *ChromaService
 	ConfigService *ConfigService
+	running       atomic.Bool
 }
 
 func NewDefaultVectorizationService(configService *ConfigService, chromaService *ChromaService) *VectorizationService {
@@ -60,37 +64,40 @@ func (v *VectorizationService) Vectorize(reset bool) {
 	log.Info().Int("docsCounter", countDocs).Dur("elapsed", time.Since(start)).Msg("Counted documents")
 }
 
-// HandleVectorizationRequest godoc
-// @Summary start the vectorization process in the background
-// @Schemes
-// @Description start the vectorization process in the background
-// @Tags vectorize
-// @Accept json
-// @Produce json
-// @Param query body model.VectorizeDTO true "query"
-// @Success 200 {object} model.StatusDTO
-// @Router /vectorize [post]
+// HandleVectorizationRequest starts vectorization in the background, if the password matches and it isn't already running
 func (v *VectorizationService) HandleVectorizationRequest(ctx *gin.Context) {
 	var vectorizeDTO model.VectorizeDTO
 	err := ctx.ShouldBindJSON(&vectorizeDTO)
 	if err != nil {
 		log.Error().Err(err).Msg("Vectorize hit with invalid body")
-		ctx.JSON(500, model.ErrorDTO{
+		ctx.JSON(http.StatusBadRequest, model.ErrorDTO{
 			Error: "string password required",
 		})
 		return
 	}
 
-	if vectorizeDTO.Password != v.ConfigService.VectorizationPassword {
+	// An unset password would otherwise let an empty one through
+	expected := v.ConfigService.VectorizationPassword
+	if expected == "" || subtle.ConstantTimeCompare([]byte(vectorizeDTO.Password), []byte(expected)) != 1 {
 		log.Error().Msg("Vectorize hit with invalid password")
-		ctx.JSON(500, model.ErrorDTO{
+		ctx.JSON(http.StatusUnauthorized, model.ErrorDTO{
 			Error: "invalid password",
 		})
 		return
 	}
 
-	go v.Vectorize(false)
-	ctx.JSON(200, model.StatusDTO{
+	if !v.running.CompareAndSwap(false, true) {
+		ctx.JSON(http.StatusConflict, model.ErrorDTO{
+			Error: "vectorization already running",
+		})
+		return
+	}
+
+	go func() {
+		defer v.running.Store(false)
+		v.Vectorize(false)
+	}()
+	ctx.JSON(http.StatusOK, model.StatusDTO{
 		Status:  "success",
 		Message: "vectorization started",
 	})

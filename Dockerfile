@@ -1,24 +1,15 @@
-# Fetch
-FROM golang:latest AS fetch-stage
-COPY go.mod go.sum /app/
-WORKDIR /app
-RUN go mod tidy
-
-# Generate Templ files
-FROM ghcr.io/a-h/templ:v0.2.778 AS generate-stage
-COPY --chown=65532:65532 . /app
-WORKDIR /app
-RUN ["templ", "generate"]
-
 # Build
-FROM golang:latest AS build-stage
-COPY --from=generate-stage /app /app
+FROM golang:1.25 AS build-stage
 WORKDIR /app
-RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o /app/biblesearch
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/biblesearch .
 
 # Run
-FROM alpine:latest AS run-stage
+FROM alpine:3.24 AS run-stage
 WORKDIR /
+ENV GIN_MODE=release
 COPY --from=build-stage /app/biblesearch /biblesearch
 COPY ./assets /assets
 COPY ./data /data

@@ -3,12 +3,16 @@ package services
 import (
 	"BibleSearch/data"
 	"BibleSearch/model"
-	"BibleSearch/templates"
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -22,6 +26,14 @@ const (
 
 // Verses per OpenAI embeddings request and Chroma add. OpenAI accepts up to 2048 inputs per request.
 const vectorizeBatchSize = 1000
+
+// Longest search query accepted, in characters
+const maxQueryLength = 500
+
+var (
+	errEmptyQuery   = errors.New("query is required")
+	errQueryTooLong = fmt.Errorf("query must be at most %d characters", maxQueryLength)
+)
 
 // Batches embedded and added at the same time. Higher values may run into OpenAI's tokens-per-minute limit,
 // which the retry loop absorbs.
@@ -158,35 +170,45 @@ func (c *ChromaService) getQueryResults(ctx context.Context, query string) (*[]m
 	return &resultSlice, nil
 }
 
-// HandleQueryRequest godoc
-// @Summary query the vector database
-// @Schemes
-// @Description query the vector database
-// @Tags query
-// @Accept json
-// @Produce json
-// @Param query body model.QueryDTO true "query"
-// @Success 200 {object} model.QueryResultsDTO
-// @Failure 500 {string} model.ErrorDTO
-// @Router /query [post]
+// validateQuery trims the query and rejects empty or overly long ones, since every query is a paid OpenAI call
+func validateQuery(query string) (string, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return "", errEmptyQuery
+	}
+	if utf8.RuneCountInString(query) > maxQueryLength {
+		return "", errQueryTooLong
+	}
+	return query, nil
+}
+
+// HandleQueryRequest returns the verses closest in meaning to the query as JSON
 func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 
 	var queryDTO model.QueryDTO
 	err := ctx.ShouldBindJSON(&queryDTO)
 	if err != nil {
 		log.Error().Err(err).Msg("Error binding json")
-		ctx.JSON(500, model.ErrorDTO{
+		ctx.JSON(http.StatusBadRequest, model.ErrorDTO{
 			Error: "error binding json",
 		})
 		return
 	}
 
-	log.Info().Str("query", queryDTO.Query).Msg("Received API query request")
+	query, err := validateQuery(queryDTO.Query)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, model.ErrorDTO{
+			Error: err.Error(),
+		})
+		return
+	}
 
-	resultSlice, err := c.getQueryResults(ctx.Request.Context(), queryDTO.Query)
+	log.Info().Str("query", query).Msg("Received API query request")
+
+	resultSlice, err := c.getQueryResults(ctx.Request.Context(), query)
 	if err != nil {
 		log.Error().Err(err).Msg("Error getting query results")
-		ctx.JSON(500, model.ErrorDTO{
+		ctx.JSON(http.StatusInternalServerError, model.ErrorDTO{
 			Error: "error getting query results",
 		})
 		return
@@ -196,21 +218,29 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 		Result: *resultSlice,
 	}
 
-	ctx.JSON(200, result)
+	ctx.JSON(http.StatusOK, result)
 }
 
+// HandleHTMXQuery returns the search results as an HTML fragment for htmx to swap in
 func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
 
-	query := ctx.PostForm("query")
+	query, err := validateQuery(ctx.PostForm("query"))
+	if errors.Is(err, errEmptyQuery) {
+		ctx.HTML(http.StatusOK, "results", nil)
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusBadRequest, err.Error())
+		return
+	}
+
 	log.Info().Str("query", query).Msg("Received HTMX query request")
 	resultSlice, err := c.getQueryResults(ctx.Request.Context(), query)
 	if err != nil {
 		log.Error().Err(err).Msg("Error getting query results")
-		ctx.String(500, "error getting query results")
+		ctx.String(http.StatusInternalServerError, "error getting query results")
 		return
 	}
 
-	comp := templates.SearchResults(*resultSlice)
-	ctx.Writer.Header().Set("Content-Type", "text/html")
-	comp.Render(ctx.Request.Context(), ctx.Writer)
+	ctx.HTML(http.StatusOK, "results", *resultSlice)
 }
