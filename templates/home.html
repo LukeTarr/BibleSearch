@@ -1,35 +1,41 @@
 {{define "home"}}
 {{template "header"}}
-  <div class="flex items-center justify-center mx-4">
-    <div class="flex items-center flex-col w-full md:w-3/4">
-      <h1 class="text-3xl font-bold mt-12 text-center">
-        Welcome to BibleSearch.ing
+    <section class="pt-16 sm:pt-24 text-center">
+      <h1 class="text-5xl sm:text-6xl font-medium tracking-tight leading-[1.05]">
+        Seek, and ye shall <span class="italic text-plum">find.</span>
       </h1>
-      <p class="mt-12 text-center">BibleSearch.ing is a new way to search for specific verses in the Holy Bible.
-        We use cutting edge vector search technology to find the most relevant verses to your query,
-        not based off of the words you search, but the semantic meaning behind them.
+      <p class="mt-3 text-sm uppercase tracking-[0.2em] text-ink-soft" style="font-feature-settings: 'lnum'">Matthew 7:7</p>
+      <p class="mt-8 text-xl leading-relaxed text-ink-soft text-balance">
+        Describe a verse the way you remember it, and find it by its meaning rather than its exact words.
       </p>
+    </section>
 
-      <div class="w-full">
-        <form class="mt-12 w-full" hx-post="/search" hx-target="#searchResultArea" hx-swap="outerHTML">
-          <label for="query" class="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">Search</label>
-          <div class="relative">
-            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-              <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
-              </svg>
-            </div>
-            <input type="search" id="query" name="query" maxlength="500"
-              class="block w-full p-4 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-              placeholder="Search Parables, Sayings, Quotes..." required />
-            <button type="submit"
-              class="text-white absolute end-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-hidden focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Search</button>
-          </div>
-        </form>
+    <form class="mt-10" hx-post="/search" hx-target="#searchResultArea" hx-swap="outerHTML">
+      <label for="query" class="sr-only">Describe the verse you're looking for</label>
+      <div class="relative">
+        <input type="search" id="query" name="query" maxlength="500" required autocomplete="off"
+          placeholder="the lilies of the field…"
+          class="w-full rounded-full bg-paper-deep/70 border border-rule pl-7 pr-16 py-4 text-xl text-ink placeholder:italic placeholder:text-ink-soft/70 shadow-[inset_0_1px_3px_rgb(0_0_0/0.06)] transition focus:outline-none focus:border-plum/60 focus:bg-paper focus:ring-4 focus:ring-plum/10 [&::-webkit-search-cancel-button]:hidden" />
+        <button type="submit" aria-label="Search"
+          class="absolute right-2 top-1/2 -translate-y-1/2 size-12 rounded-full bg-plum text-paper grid place-items-center transition hover:scale-105 active:scale-95">
+          <svg viewBox="0 0 24 24" class="search-arrow col-start-1 row-start-1 size-5 transition-opacity" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+          <svg viewBox="0 0 24 24" class="search-spinner col-start-1 row-start-1 size-5 transition-opacity" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 3a9 9 0 1 1-9 9" />
+          </svg>
+        </button>
       </div>
+      <p class="mt-5 text-center text-ink-soft" onclick="const b = event.target.closest('[data-q]'); if (b) { const i = document.getElementById('query'); i.value = b.dataset.q; i.form.requestSubmit() }">
+        <span class="italic">Or try</span>
+        <button type="button" data-q="the Lord is my shepherd" class="suggestion">the Lord is my shepherd</button>
+        <span class="text-gold" aria-hidden="true">&middot;</span>
+        <button type="button" data-q="don't worry about tomorrow" class="suggestion">don't worry about tomorrow</button>
+        <span class="text-gold" aria-hidden="true">&middot;</span>
+        <button type="button" data-q="Eve eats the apple" class="suggestion">Eve eats the apple</button>
+      </p>
+    </form>
 
-      {{template "results" .}}
-    </div>
-  </div>
+    {{template "results" .}}
 {{template "footer"}}
 {{end}}

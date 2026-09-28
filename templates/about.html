@@ -1,40 +1,37 @@
 {{define "about"}}
 {{template "header"}}
-  <div class="flex items-center justify-center mx-4 flex-col">
-    <h1 class="text-3xl font-bold mt-12 text-center">
-      About
-    </h1>
+    <article class="pt-16 sm:pt-24">
+      <header class="text-center">
+        <h1 class="text-5xl sm:text-6xl font-medium tracking-tight">About</h1>
+        <div class="mt-8">{{template "ornament"}}</div>
+      </header>
 
-    <h3 class="text-xl font-bold mt-8 text-center">
-      What is BibleSearch.ing?
-    </h3>
-    <p class="mt-8 text-center">
-      BibleSearch.ing is a new search engine for the Holy Bible.
-      It's great to find a verse you have in the back of your mind, but can't remember the exact words.
-    </p>
+      <div class="mt-12 space-y-6 text-xl leading-relaxed text-pretty">
+        <p class="drop-cap">
+          BibleSearch is a search engine for the Holy Bible. It's for the verse you have in the back of your mind
+          but can't quite remember the words to.
+        </p>
 
-    <h3 class="text-xl font-bold mt-8 text-center">
-      What makes BibleSearch.ing different?
-    </h3>
-    <p class="mt-8 text-center">
-      BibleSearch.ing uses what's called a "vector search" to find the most relevant verses to your query.
-      A vector database is used to hold the meaning of a particular piece of data in a coordinate space, and the search query is converted into one of these vector.
-      The query is then compared to the vectors in the database, and the closest neighboring verses in the coordinate space are returned.
-      Because the coordinates of a verse are based off of the meaning of the words, this means the closest verses are the ones that are most similar in meaning.
-    </p>
+        <h2 class="pt-8 text-3xl font-medium tracking-tight">Searching by meaning</h2>
+        <p>
+          Most Bible search looks for the exact words you type. BibleSearch uses what's called a
+          <em>vector search</em> instead. Every verse has been turned into a list of numbers that describes what it
+          means, like a point on a map where verses about similar things sit close together.
+        </p>
+        <p>
+          When you search, your words are placed on the same map, and the verses nearest to them are returned. That's
+          why a search like “don't worry about tomorrow” finds “take therefore no thought for the morrow”, even though
+          they share almost no words.
+        </p>
 
-    <h3 class="text-xl font-bold mt-8 text-center">
-      How was BibleSearch.ing made?
-    </h3>
-    <p class="mt-8 text-center">
-      BibleSearch.ing was made using Chroma, one of these vector databases. We then vectorize all of the verses in the Bible, using OpenAI's text-embedding-3-small model and store them in the database.
-      The search engine is written in Go, and the frontend is written with Go's html/template, Tailwind, and HTMX. The entire project is open source, and can be found on <a href="https://github.com/LukeTarr/BibleSearch"
-      class="text-blue-500 underline">GitHub</a>.
-    </p>
-
-    <p class="mt-8 text-center">
-      1 Corinthians 10:31
-    </p>
-  </div>
+        <h2 class="pt-8 text-3xl font-medium tracking-tight">How it was made</h2>
+        <p>
+          All 31,100 verses of the King James Version were turned into vectors with OpenAI's
+          <em>text-embedding-3-small</em> model and stored in Chroma, a vector database. The site itself is written in
+          Go, with htmx and Tailwind for the pages. The whole project is open source and can be found on
+          <a href="https://github.com/LukeTarr/BibleSearch" class="text-plum underline decoration-plum/40 underline-offset-4 hover:decoration-plum transition-colors">GitHub</a>.
+        </p>
+      </div>
+    </article>
 {{template "footer"}}
 {{end}}

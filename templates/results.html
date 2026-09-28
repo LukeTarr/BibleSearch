@@ -1,13 +1,31 @@
 {{define "results"}}
-<div id="searchResultArea" class="w-full">
-  {{range .}}
-  <div class="flex items-center justify-center flex-row m-4">
-    <a href="{{.Metadata.ReferenceLink}}" target="_blank" rel="noopener noreferrer"
-      class="block max-w-xl p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
-      <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{{.Text}}</h5>
-      <p class="font-normal text-gray-700 dark:text-gray-400">{{.Metadata.Book}} {{.Metadata.Chapter}}:{{.Metadata.Verse}}</p>
-    </a>
-  </div>
+<section id="searchResultArea" class="mt-4" aria-live="polite">
+  {{if .Error}}
+  <p class="mt-10 text-center italic text-ink-soft">{{.Error}}</p>
+  {{else if .Results}}
+  <p class="mt-10 mb-10 text-center text-ink-soft">
+    <span class="italic">Nearest in meaning to</span> “{{.Query}}”
+  </p>
+  <ol class="passages">
+    {{range .Results}}
+    <li>
+      <a href="{{.Metadata.ReferenceLink}}" target="_blank" rel="noopener noreferrer" class="group block text-center">
+        <p class="relative inline-block text-sm uppercase tracking-[0.2em] -mr-[0.2em] text-plum" style="font-feature-settings: 'lnum'">
+          {{.Metadata.Book}} {{.Metadata.Chapter}}:{{.Metadata.Verse}}
+          <svg viewBox="0 0 24 24" class="absolute left-full top-1/2 -translate-y-1/2 ml-1 size-3.5 opacity-0 -translate-x-1 transition group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17 17 7M8 7h9v9" />
+          </svg>
+        </p>
+        {{with verse .Text}}
+        <p class="mt-2 text-2xl leading-relaxed text-pretty transition-colors group-hover:text-plum">{{.Text}}</p>
+        {{range .Notes}}
+        <p class="mt-2 text-base italic text-ink-soft"><span class="not-italic text-gold" aria-hidden="true">&dagger;</span> {{.Term}}: <span class="not-italic">{{.Note}}</span></p>
+        {{end}}
+        {{end}}
+      </a>
+    </li>
+    {{end}}
+  </ol>
   {{end}}
-</div>
+</section>
 {{end}}

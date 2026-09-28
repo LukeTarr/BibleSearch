@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"BibleSearch/docs"
+	"BibleSearch/model"
 	"BibleSearch/services"
 	"net/http"
 
@@ -14,7 +15,7 @@ func RegisterPages(supergroup *gin.RouterGroup, chromaService *services.ChromaSe
 	supergroup.StaticFS("/swagger", http.FS(docs.FS))
 
 	supergroup.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "home", nil)
+		c.HTML(http.StatusOK, "home", model.SearchResultsView{})
 	})
 
 	supergroup.GET("/about", func(c *gin.Context) {

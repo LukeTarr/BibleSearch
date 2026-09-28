@@ -1,1 +1,176 @@
 @import "tailwindcss" source("../templates");
+
+/* EB Garamond, self-hosted (SIL Open Font License, see fonts/OFL.txt) */
+@font-face {
+  font-family: "EB Garamond";
+  src: url("/assets/fonts/eb-garamond-latin-wght-normal.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "EB Garamond";
+  src: url("/assets/fonts/eb-garamond-latin-wght-italic.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Palette: parchment and ink, with the plum and gold of the logo. Dark mode is the same book by candlelight. */
+:root {
+  --paper: #f6f1e7;
+  --paper-deep: #eee6d6;
+  --ink: #2b2226;
+  --ink-soft: #6a5c62;
+  --rule: #ddd1bd;
+  --plum: #5b2a52;
+  --gold: #b88a2e;
+  --glow: rgb(214 170 76 / 0.16);
+  --grain-opacity: 0.05;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1c1719;
+    --paper-deep: #262023;
+    --ink: #ece3d4;
+    --ink-soft: #b1a498;
+    --rule: #3d3438;
+    --plum: #d9a8cd;
+    --gold: #dcb45e;
+    --glow: rgb(220 180 94 / 0.07);
+    --grain-opacity: 0.08;
+  }
+}
+
+/* Below 360px the Home link is hidden (the wordmark still links home) so the header fits on one line */
+@theme {
+  --breakpoint-xs: 22.5rem;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-rule: var(--rule);
+  --color-plum: var(--plum);
+  --color-gold: var(--gold);
+  --font-serif: "EB Garamond", "Iowan Old Style", Georgia, serif;
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+  body {
+    @apply bg-paper text-ink font-serif antialiased;
+    font-feature-settings: "kern", "liga", "onum";
+    text-rendering: optimizeLegibility;
+    /* Warm light from above, over a faint paper grain */
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, var(--glow), transparent 70%);
+    background-attachment: fixed;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .4 0 0 0 0 .3 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--gold) 35%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--plum);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* A small gold diamond between passages */
+  .passages > li + li::before {
+    content: "";
+    display: block;
+    width: 6px;
+    height: 6px;
+    margin: 2.25rem auto;
+    background: var(--gold);
+    opacity: 0.7;
+    transform: rotate(45deg);
+  }
+
+  /* Passages rise in one after another when results arrive */
+  .passages > li {
+    animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .passages > li:nth-child(2) { animation-delay: 60ms; }
+  .passages > li:nth-child(3) { animation-delay: 120ms; }
+  .passages > li:nth-child(4) { animation-delay: 180ms; }
+  .passages > li:nth-child(5) { animation-delay: 240ms; }
+  .passages > li:nth-child(6) { animation-delay: 300ms; }
+  .passages > li:nth-child(7) { animation-delay: 360ms; }
+  .passages > li:nth-child(8) { animation-delay: 420ms; }
+  .passages > li:nth-child(9) { animation-delay: 480ms; }
+  .passages > li:nth-child(10) { animation-delay: 540ms; }
+
+  .suggestion {
+    @apply cursor-pointer underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-plum hover:decoration-plum;
+  }
+
+  /* While a search is in flight (htmx puts .htmx-request on the form), the arrow becomes a spinner and the
+     old results fade back */
+  .search-spinner {
+    opacity: 0;
+  }
+  form.htmx-request .search-arrow {
+    opacity: 0;
+  }
+  form.htmx-request .search-spinner {
+    opacity: 1;
+    animation: spin 0.9s linear infinite;
+  }
+  #searchResultArea {
+    transition: opacity 0.3s ease;
+  }
+  form.htmx-request ~ #searchResultArea {
+    opacity: 0.35;
+  }
+
+  /* Illuminated first letter on long-form pages */
+  .drop-cap::first-letter {
+    float: left;
+    font-size: 3.6em;
+    line-height: 0.85;
+    padding: 0.08em 0.12em 0 0;
+    color: var(--plum);
+    font-weight: 500;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .passages > li {
+    animation: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

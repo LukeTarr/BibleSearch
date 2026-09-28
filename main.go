@@ -31,6 +31,7 @@ func main() {
 	r.Static("/assets", "./assets")
 
 	// Dev reads templates from disk and gin re-parses them on every request, so edits show on refresh
+	r.SetFuncMap(templates.Funcs)
 	if configuration.Dev {
 		r.LoadHTMLGlob("templates/*.html")
 	} else {

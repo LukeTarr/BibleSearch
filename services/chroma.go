@@ -221,16 +221,16 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
-// HandleHTMXQuery returns the search results as an HTML fragment for htmx to swap in
+// HandleHTMXQuery returns the search results, or an error message, as an HTML fragment for htmx to swap in
 func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
 
 	query, err := validateQuery(ctx.PostForm("query"))
 	if errors.Is(err, errEmptyQuery) {
-		ctx.HTML(http.StatusOK, "results", nil)
+		ctx.HTML(http.StatusOK, "results", model.SearchResultsView{})
 		return
 	}
 	if err != nil {
-		ctx.String(http.StatusBadRequest, err.Error())
+		ctx.HTML(http.StatusBadRequest, "results", model.SearchResultsView{Error: "Please shorten your search to 500 characters or fewer."})
 		return
 	}
 
@@ -238,9 +238,9 @@ func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
 	resultSlice, err := c.getQueryResults(ctx.Request.Context(), query)
 	if err != nil {
 		log.Error().Err(err).Msg("Error getting query results")
-		ctx.String(http.StatusInternalServerError, "error getting query results")
+		ctx.HTML(http.StatusInternalServerError, "results", model.SearchResultsView{Query: query, Error: "Something went wrong while searching. Please try again in a moment."})
 		return
 	}
 
-	ctx.HTML(http.StatusOK, "results", *resultSlice)
+	ctx.HTML(http.StatusOK, "results", model.SearchResultsView{Query: query, Results: *resultSlice})
 }

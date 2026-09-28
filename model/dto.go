@@ -34,3 +34,10 @@ type StatusDTO struct {
 type ErrorDTO struct {
 	Error string `json:"error"`
 }
+
+// SearchResultsView is what the results template renders: the verses, or an error message to show instead
+type SearchResultsView struct {
+	Query   string
+	Results []ChromaQueryResultsDTO
+	Error   string
+}
