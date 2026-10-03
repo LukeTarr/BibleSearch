@@ -21,6 +21,7 @@ func main() {
 	var handler slog.Handler = slog.NewJSONHandler(os.Stdout, nil)
 	if configuration.Dev {
 		handler = slog.NewTextHandler(os.Stdout, nil)
+		slog.Info("Running in dev mode")
 	}
 	slog.SetDefault(slog.New(handler))
 
