@@ -22,7 +22,8 @@ The query and the stored verses must be embedded with the same model. If you cha
 
 ## Tech stack
 
-- **Go + [Gin](https://gin-gonic.com/)**: HTTP server
+- **Go standard library**: `net/http` (method + path routing with `http.ServeMux`) and `log/slog` for
+  structured logs (text when `DEV=true`, JSON otherwise). The only dependency is `godotenv`.
 - **`html/template`**: plain HTML templates in `templates/`, embedded into the binary. No code generation.
 - **[htmx](https://htmx.org/) 2**: the search form posts to `/search` and swaps in the results HTML (no JS
   framework). Vendored at `assets/htmx.min.js`.
@@ -39,7 +40,7 @@ The query and the stored verses must be embedded with the same model. If you cha
 
 ```
 main.go              startup: config, Chroma collection, routes
-controllers/         route registration (pages + /api/v1)
+controllers/         route registration (pages + /api/v1), request logging + panic recovery middleware
 services/
   chroma.go          collection setup, embedding model, query + HTMX handlers
   chromaclient.go    minimal Chroma v2 REST client
@@ -112,4 +113,4 @@ Production runs on a VPS with [Coolify](https://coolify.io/), which builds the `
 `main`. Chroma runs as a separate container, pinned to the same image tag as `docker-compose.yml` (data at
 `/data`, `CHROMA_ALLOW_RESET=true`). Secrets come from Coolify's environment variables at runtime.
 No `.env` file ends up in the image (`.dockerignore`), and the app falls back to the environment when the file
-isn't there. The image sets `GIN_MODE=release` and serves the templates embedded in the binary.
+isn't there. The image serves the templates embedded in the binary. The server listens on `PORT` (default 8080).

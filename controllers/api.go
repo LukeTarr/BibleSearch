@@ -2,12 +2,10 @@ package controllers
 
 import (
 	"BibleSearch/services"
-	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
-func RegisterAPIRoutes(supergroup *gin.RouterGroup, vectorizationService *services.VectorizationService, chromaService *services.ChromaService) {
-	api := supergroup.Group("/api/v1")
-
-	api.POST("/vectorize", vectorizationService.HandleVectorizationRequest)
-	api.POST("/query", chromaService.HandleQueryRequest)
+func RegisterAPIRoutes(mux *http.ServeMux, vectorizationService *services.VectorizationService, chromaService *services.ChromaService) {
+	mux.HandleFunc("POST /api/v1/vectorize", vectorizationService.HandleVectorizationRequest)
+	mux.HandleFunc("POST /api/v1/query", chromaService.HandleQueryRequest)
 }

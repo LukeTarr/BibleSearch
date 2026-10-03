@@ -9,7 +9,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/biblesearch .
 # Run
 FROM alpine:3.24 AS run-stage
 WORKDIR /
-ENV GIN_MODE=release
 COPY --from=build-stage /app/biblesearch /biblesearch
 COPY ./assets /assets
 COPY ./data /data

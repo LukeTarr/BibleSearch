@@ -3,8 +3,7 @@ package services
 import (
 	"BibleSearch/model"
 	"crypto/subtle"
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
+	"log/slog"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -27,50 +26,50 @@ func (v *VectorizationService) Vectorize(reset bool) {
 	start := time.Now()
 
 	if reset {
-		log.Info().Msg("Resetting Client")
+		slog.Info("Resetting Client")
 		err := v.ChromaService.ResetClient()
 		if err != nil {
-			log.Error().Err(err).Msg("Error resetting client")
+			slog.Error("Error resetting client", "err", err)
 			return
 		}
 	}
 
-	log.Info().Msg("Creating Collection")
+	slog.Info("Creating Collection")
 	err := v.ChromaService.CreateCollection(CollectionName)
 	if err != nil {
-		log.Error().Err(err).Msg("Error creating collection")
+		slog.Error("Error creating collection", "err", err)
 		return
 	}
 
 	bookSlice, err := GetBookSlice()
 	if err != nil {
-		log.Error().Err(err).Msg("Error getting book slice")
+		slog.Error("Error getting book slice", "err", err)
 		return
 	}
 
-	log.Info().Msg("Adding Books to Collection")
+	slog.Info("Adding Books to Collection")
 	err = v.ChromaService.AddBooksToCollection(bookSlice)
 	if err != nil {
-		log.Error().Err(err).Msg("Error adding books to collection")
+		slog.Error("Error adding books to collection", "err", err)
 		return
 	}
 
 	countDocs, err := v.ChromaService.Count()
 	if err != nil {
-		log.Error().Err(err).Msg("Error counting documents")
+		slog.Error("Error counting documents", "err", err)
 		return
 	}
 
-	log.Info().Int("docsCounter", countDocs).Dur("elapsed", time.Since(start)).Msg("Counted documents")
+	slog.Info("Counted documents", "docsCounter", countDocs, "elapsed", time.Since(start))
 }
 
 // HandleVectorizationRequest starts vectorization in the background, if the password matches and it isn't already running
-func (v *VectorizationService) HandleVectorizationRequest(ctx *gin.Context) {
+func (v *VectorizationService) HandleVectorizationRequest(w http.ResponseWriter, r *http.Request) {
 	var vectorizeDTO model.VectorizeDTO
-	err := ctx.ShouldBindJSON(&vectorizeDTO)
+	err := decodeJSON(w, r, &vectorizeDTO)
 	if err != nil {
-		log.Error().Err(err).Msg("Vectorize hit with invalid body")
-		ctx.JSON(http.StatusBadRequest, model.ErrorDTO{
+		slog.Error("Vectorize hit with invalid body", "err", err)
+		writeJSON(w, http.StatusBadRequest, model.ErrorDTO{
 			Error: "string password required",
 		})
 		return
@@ -79,15 +78,15 @@ func (v *VectorizationService) HandleVectorizationRequest(ctx *gin.Context) {
 	// An unset password would otherwise let an empty one through
 	expected := v.ConfigService.VectorizationPassword
 	if expected == "" || subtle.ConstantTimeCompare([]byte(vectorizeDTO.Password), []byte(expected)) != 1 {
-		log.Error().Msg("Vectorize hit with invalid password")
-		ctx.JSON(http.StatusUnauthorized, model.ErrorDTO{
+		slog.Warn("Vectorize hit with invalid password")
+		writeJSON(w, http.StatusUnauthorized, model.ErrorDTO{
 			Error: "invalid password",
 		})
 		return
 	}
 
 	if !v.running.CompareAndSwap(false, true) {
-		ctx.JSON(http.StatusConflict, model.ErrorDTO{
+		writeJSON(w, http.StatusConflict, model.ErrorDTO{
 			Error: "vectorization already running",
 		})
 		return
@@ -97,7 +96,7 @@ func (v *VectorizationService) HandleVectorizationRequest(ctx *gin.Context) {
 		defer v.running.Store(false)
 		v.Vectorize(false)
 	}()
-	ctx.JSON(http.StatusOK, model.StatusDTO{
+	writeJSON(w, http.StatusOK, model.StatusDTO{
 		Status:  "success",
 		Message: "vectorization started",
 	})

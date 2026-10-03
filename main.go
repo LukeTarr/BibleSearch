@@ -4,50 +4,58 @@ import (
 	"BibleSearch/controllers"
 	"BibleSearch/services"
 	"BibleSearch/templates"
-
-	ginzerolog "github.com/dn365/gin-zerolog"
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
+	"cmp"
+	"log/slog"
+	"net/http"
+	"os"
+	"time"
 )
 
 func main() {
 
-	// Setup configs, services, and chroma client
+	// Setup configs, logging, services, and chroma client
 	services.ReadDotEnv()
 	configuration := services.NewDefaultConfig()
+
+	// Readable logs locally, JSON in production
+	var handler slog.Handler = slog.NewJSONHandler(os.Stdout, nil)
+	if configuration.Dev {
+		handler = slog.NewTextHandler(os.Stdout, nil)
+	}
+	slog.SetDefault(slog.New(handler))
 
 	chromaService := services.NewDefaultChromaService(configuration)
 	err := chromaService.CreateCollection(services.CollectionName)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error getting collection")
+		slog.Error("Error getting collection", "err", err)
+		os.Exit(1)
 	}
 
 	vectorizationService := services.NewDefaultVectorizationService(configuration, chromaService)
 
-	// Gin router + middleware + static assets
-	r := gin.New()
-	r.Use(ginzerolog.Logger("gin"))
-	r.Use(gin.Recovery())
-	r.Static("/assets", "./assets")
+	// Dev reads templates from disk and re-parses them on every request, so edits show on refresh
+	renderer := templates.NewRenderer(configuration.Dev)
 
-	// Dev reads templates from disk and gin re-parses them on every request, so edits show on refresh
-	r.SetFuncMap(templates.Funcs)
-	if configuration.Dev {
-		r.LoadHTMLGlob("templates/*.html")
-	} else {
-		r.SetHTMLTemplate(templates.Parse())
-	}
-	root := r.Group("/")
+	mux := http.NewServeMux()
+	controllers.RegisterAssets(mux)
 
 	// API routes
-	controllers.RegisterAPIRoutes(root, vectorizationService, chromaService)
+	controllers.RegisterAPIRoutes(mux, vectorizationService, chromaService)
 
 	// Pages routes
-	controllers.RegisterPages(root, chromaService)
+	controllers.RegisterPages(mux, renderer, chromaService)
 
-	err = r.Run()
+	server := &http.Server{
+		Addr:              ":" + cmp.Or(os.Getenv("PORT"), "8080"),
+		Handler:           controllers.Recover(controllers.LogRequests(mux)),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	slog.Info("Listening", "addr", server.Addr)
+	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error running server")
+		slog.Error("Error running server", "err", err)
+		os.Exit(1)
 	}
 
 }

@@ -4,23 +4,36 @@ import (
 	"BibleSearch/docs"
 	"BibleSearch/model"
 	"BibleSearch/services"
+	"BibleSearch/templates"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
+	"strings"
 )
 
-func RegisterPages(supergroup *gin.RouterGroup, chromaService *services.ChromaService) {
+func RegisterPages(mux *http.ServeMux, renderer *templates.Renderer, chromaService *services.ChromaService) {
 
-	// Swagger UI + hand-written OpenAPI spec
-	supergroup.StaticFS("/swagger", http.FS(docs.FS))
+	// Swagger UI + hand-written OpenAPI spec. The mux redirects /swagger to /swagger/.
+	mux.Handle("GET /swagger/", http.StripPrefix("/swagger", http.FileServerFS(docs.FS)))
 
-	supergroup.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "home", model.SearchResultsView{})
+	// {$} matches only "/" itself, rather than every path
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		renderer.Render(w, http.StatusOK, "home", model.SearchResultsView{})
 	})
 
-	supergroup.GET("/about", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "about", nil)
+	mux.HandleFunc("GET /about", func(w http.ResponseWriter, r *http.Request) {
+		renderer.Render(w, http.StatusOK, "about", nil)
 	})
 
-	supergroup.POST("/search", chromaService.HandleHTMXQuery)
+	mux.HandleFunc("POST /search", chromaService.HandleHTMXQuery(renderer))
+}
+
+// RegisterAssets serves ./assets, without directory listings
+func RegisterAssets(mux *http.ServeMux) {
+	files := http.StripPrefix("/assets", http.FileServer(http.Dir("assets")))
+	mux.HandleFunc("GET /assets/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		files.ServeHTTP(w, r)
+	})
 }

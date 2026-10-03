@@ -2,7 +2,7 @@ package services
 
 import (
 	"github.com/joho/godotenv"
-	"github.com/rs/zerolog/log"
+	"log/slog"
 	"os"
 )
 
@@ -26,6 +26,6 @@ func NewDefaultConfig() *ConfigService {
 func ReadDotEnv() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Info().Msg("No .env file found, using environment variables")
+		slog.Info("No .env file found, using environment variables")
 	}
 }

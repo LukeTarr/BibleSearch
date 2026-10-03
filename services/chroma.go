@@ -3,9 +3,11 @@ package services
 import (
 	"BibleSearch/data"
 	"BibleSearch/model"
+	"BibleSearch/templates"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,9 +15,6 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
-
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
 )
 
 // Changing the embedding model requires a new collection, since vectors from different models aren't comparable
@@ -110,10 +109,10 @@ func (c *ChromaService) AddBooksToCollection(bookSlice *[]model.Book) error {
 				if err == nil {
 					break
 				}
-				log.Error().Err(err).Int("start", start).Msg("Error adding documents, retrying")
+				slog.Error("Error adding documents, retrying", "err", err, "start", start)
 				time.Sleep(5 * time.Second)
 			}
-			log.Info().Int64("added", added.Add(int64(end-start))).Int("total", len(ids)).Msg("Added batch")
+			slog.Info("Added batch", "added", added.Add(int64(end-start)), "total", len(ids))
 		}(start, end)
 	}
 
@@ -132,13 +131,13 @@ func (c *ChromaService) addBatch(ctx context.Context, ids []string, documents []
 func (c *ChromaService) getQueryResults(ctx context.Context, query string) (*[]model.ChromaQueryResultsDTO, error) {
 	embeddings, err := c.openai.Embed(ctx, []string{query})
 	if err != nil {
-		log.Error().Err(err).Msg("Error embedding query")
+		slog.Error("Error embedding query", "err", err)
 		return nil, err
 	}
 
 	qr, err := c.chroma.query(ctx, c.CollectionID, embeddings[0], 10)
 	if err != nil {
-		log.Error().Err(err).Msg("Error querying")
+		slog.Error("Error querying", "err", err)
 		return nil, err
 	}
 
@@ -183,13 +182,13 @@ func validateQuery(query string) (string, error) {
 }
 
 // HandleQueryRequest returns the verses closest in meaning to the query as JSON
-func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
+func (c *ChromaService) HandleQueryRequest(w http.ResponseWriter, r *http.Request) {
 
 	var queryDTO model.QueryDTO
-	err := ctx.ShouldBindJSON(&queryDTO)
+	err := decodeJSON(w, r, &queryDTO)
 	if err != nil {
-		log.Error().Err(err).Msg("Error binding json")
-		ctx.JSON(http.StatusBadRequest, model.ErrorDTO{
+		slog.Error("Error binding json", "err", err)
+		writeJSON(w, http.StatusBadRequest, model.ErrorDTO{
 			Error: "error binding json",
 		})
 		return
@@ -197,18 +196,18 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 
 	query, err := validateQuery(queryDTO.Query)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, model.ErrorDTO{
+		writeJSON(w, http.StatusBadRequest, model.ErrorDTO{
 			Error: err.Error(),
 		})
 		return
 	}
 
-	log.Info().Str("query", query).Msg("Received API query request")
+	slog.Info("Received API query request", "query", query)
 
-	resultSlice, err := c.getQueryResults(ctx.Request.Context(), query)
+	resultSlice, err := c.getQueryResults(r.Context(), query)
 	if err != nil {
-		log.Error().Err(err).Msg("Error getting query results")
-		ctx.JSON(http.StatusInternalServerError, model.ErrorDTO{
+		slog.Error("Error getting query results", "err", err)
+		writeJSON(w, http.StatusInternalServerError, model.ErrorDTO{
 			Error: "error getting query results",
 		})
 		return
@@ -218,29 +217,31 @@ func (c *ChromaService) HandleQueryRequest(ctx *gin.Context) {
 		Result: *resultSlice,
 	}
 
-	ctx.JSON(http.StatusOK, result)
+	writeJSON(w, http.StatusOK, result)
 }
 
 // HandleHTMXQuery returns the search results, or an error message, as an HTML fragment for htmx to swap in
-func (c *ChromaService) HandleHTMXQuery(ctx *gin.Context) {
+func (c *ChromaService) HandleHTMXQuery(renderer *templates.Renderer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	query, err := validateQuery(ctx.PostForm("query"))
-	if errors.Is(err, errEmptyQuery) {
-		ctx.HTML(http.StatusOK, "results", model.SearchResultsView{})
-		return
-	}
-	if err != nil {
-		ctx.HTML(http.StatusBadRequest, "results", model.SearchResultsView{Error: "Please shorten your search to 500 characters or fewer."})
-		return
-	}
+		query, err := validateQuery(r.PostFormValue("query"))
+		if errors.Is(err, errEmptyQuery) {
+			renderer.Render(w, http.StatusOK, "results", model.SearchResultsView{})
+			return
+		}
+		if err != nil {
+			renderer.Render(w, http.StatusBadRequest, "results", model.SearchResultsView{Error: "Please shorten your search to 500 characters or fewer."})
+			return
+		}
 
-	log.Info().Str("query", query).Msg("Received HTMX query request")
-	resultSlice, err := c.getQueryResults(ctx.Request.Context(), query)
-	if err != nil {
-		log.Error().Err(err).Msg("Error getting query results")
-		ctx.HTML(http.StatusInternalServerError, "results", model.SearchResultsView{Query: query, Error: "Something went wrong while searching. Please try again in a moment."})
-		return
-	}
+		slog.Info("Received HTMX query request", "query", query)
+		resultSlice, err := c.getQueryResults(r.Context(), query)
+		if err != nil {
+			slog.Error("Error getting query results", "err", err)
+			renderer.Render(w, http.StatusInternalServerError, "results", model.SearchResultsView{Query: query, Error: "Something went wrong while searching. Please try again in a moment."})
+			return
+		}
 
-	ctx.HTML(http.StatusOK, "results", model.SearchResultsView{Query: query, Results: *resultSlice})
+		renderer.Render(w, http.StatusOK, "results", model.SearchResultsView{Query: query, Results: *resultSlice})
+	}
 }
